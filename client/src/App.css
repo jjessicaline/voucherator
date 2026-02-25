@@ -1,0 +1,28 @@
+html {
+  --bg-color: #242424;
+  --text-color: #fff;
+}
+
+#root {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 2rem;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.fieldWrapper {
+  flex-direction: row;
+  gap: 10px;
+  display: flex;
+}
+.fieldWrapper label {
+  width: 200px;
+  display: inline-block;
+  text-align: right;
+}
