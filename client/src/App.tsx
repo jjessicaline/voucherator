@@ -8,17 +8,17 @@ import { JsonRenderer } from "./components/JsonRenderer";
 
 function App() {
   const [file, setFile] = useState<File | null>(null);
-  const [folder, setFolder] = useState<string | null>(null);
+  const [eventName, setEventName] = useState<string | null>(null);
   const [rows, setRows] = useState<object[] | null>(null);
 
-  const { mutate, loading, error, data } = useMutation<{
+  const { mutate, loading, error } = useMutation<{
     count: number;
     records: object[];
     success: boolean;
   }>("/api/parse");
 
   const onSubmit = async () => {
-    const formData = buildFormData({ file, folder });
+    const formData = buildFormData({ file, eventName });
 
     const result = await mutate(formData);
 
@@ -30,6 +30,7 @@ function App() {
 
   return (
     <>
+      {error && <h2>Houve um erro ao gerar os PDFs: {error}</h2>}
       <form>
         <FileInput
           name="csv-source"
@@ -39,13 +40,24 @@ function App() {
           disabled={!!rows && loading}
         />
         <Input
-          name="folder-name"
-          label="Nome da pasta: "
-          onChange={(e) => setFolder(e.target.value)}
+          name="event-name"
+          label="Nome do Evento: "
+          onChange={(e) => setEventName(e.target.value)}
           type="text"
           readOnly={!!rows && loading}
+          size={50}
+          info={
+            eventName
+              ? `Veja abaixo os dados de sua reserva para ${eventName}`
+              : undefined
+          }
         />
-        <button type="button" onClick={onSubmit}>
+        <button
+          type="button"
+          onClick={onSubmit}
+          disabled={!file || !eventName}
+          className="button-submit"
+        >
           Enviar
         </button>
       </form>

@@ -103,7 +103,7 @@ function drawSection(page, font, title, topY) {
   page.drawText(title, { x: 35, y: yf(topY), size: 14, font, color: DARK });
 }
 
-export async function generatePdf(data, outputPath) {
+export async function generatePdf(eventName, data, outputPath) {
   const pdfDoc = await PDFDocument.create();
   pdfDoc.registerFontkit(fontkit);
   const page = pdfDoc.addPage([W, H]);
@@ -115,7 +115,7 @@ export async function generatePdf(data, outputPath) {
   page.drawRectangle({ x: 0, y: yf(65), width: W, height: 65, color: BLACK });
 
   page.drawImage(logo, {
-    x: page.getWidth() / 2 - LogoW,
+    x: page.getWidth() / 2 - LogoW / 2,
     y: yf(20 + LogoH),
     width: LogoW,
     height: LogoH,
@@ -146,16 +146,13 @@ export async function generatePdf(data, outputPath) {
     color: BLUE,
   });
 
-  page.drawText(
-    "Veja abaixo os dados de sua reserva para a CONMEBOL Recopa 2026",
-    {
-      x: 35,
-      y: yf(240),
-      size: 14,
-      font: BarlowBold,
-      color: DARK,
-    },
-  );
+  page.drawText(`Veja abaixo os dados de sua reserva para ${eventName}`, {
+    x: 35,
+    y: yf(240),
+    size: 14,
+    font: BarlowBold,
+    color: DARK,
+  });
 
   // ── RESUMO DO PEDIDO ────────────────────────────────────────────────
   drawSection(page, BarlowBold, "Resumo do pedido", 322);

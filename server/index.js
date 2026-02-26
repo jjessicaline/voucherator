@@ -14,16 +14,6 @@ app.use(
   }),
 );
 
-// Define a GET endpoint
-app.get("/api/data", (req, res) => {
-  const sampleData = {
-    name: "John Doe",
-    age: 30,
-    occupation: "Software Developer",
-  };
-  res.json(sampleData);
-});
-
 app.post("/api/parse", upload.single("file"), async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: "No file uploaded" });
@@ -36,7 +26,10 @@ app.post("/api/parse", upload.single("file"), async (req, res) => {
     cast: true,
   });
 
-  const generatedFiles = await generatePdfsFromRows(records, req.body.folder);
+  const generatedFiles = await generatePdfsFromRows(
+    records,
+    req.body.eventName,
+  );
 
   res.json({
     success: true,

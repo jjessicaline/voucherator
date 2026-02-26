@@ -5,15 +5,17 @@ export const JsonRenderer = ({ data }: { data: object[] }) => {
   return (
     <table>
       <thead>
-        {headers.map((column) => (
-          <th>{column}</th>
-        ))}
+        <tr>
+          {headers.map((column) => (
+            <th key={`column-${column}`}>{column}</th>
+          ))}
+        </tr>
       </thead>
       <tbody>
-        {data.map((row) => (
-          <tr>
-            {Object.values(row).map((columnData) => (
-              <td>{columnData}</td>
+        {data.map((row, index) => (
+          <tr key={`json-row-${index}`}>
+            {Object.values(row).map((columnData, index) => (
+              <td key={`json-row-${index}-col-${index}`}>{columnData}</td>
             ))}
           </tr>
         ))}

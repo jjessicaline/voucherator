@@ -1,7 +1,3 @@
-const FILE_TYPES = {
-  csv: ".csv",
-};
-
 export type FieldWrapperProps = {
   name: string;
   label: string;
@@ -13,7 +9,7 @@ export const FieldWrapper = ({
   label,
 }: React.PropsWithChildren<FieldWrapperProps>) => {
   return (
-    <div className="fieldWrapper">
+    <div className="field-wrapper">
       <label htmlFor={name}>{label}</label>
       {children}
     </div>
