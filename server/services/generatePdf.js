@@ -1,76 +1,230 @@
-import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
+import { PDFDocument, rgb } from "pdf-lib";
 import { writeFile } from "fs/promises";
+import fontkit from "@pdf-lib/fontkit";
+import path from "path";
+import fs from "fs";
+import { fileURLToPath } from "url";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// Load assets
+const BarlowBoldSrc = fs.readFileSync(
+  path.join(__dirname, "../assets/Barlow-Bold.ttf"),
+);
+const BarlowSemiBoldSrc = fs.readFileSync(
+  path.join(__dirname, "../assets/Barlow-SemiBold.ttf"),
+);
+const Logo = fs.readFileSync(path.join(__dirname, "../assets/logo.png"));
+
+const LogoW = 48.75; // in points
+const LogoH = 25.5; // in points
+
+const W = 595; // A4 width in points
+const H = 842; // A4 height in points
+const yf = (topY) => H - topY; // flip y-axis (pdf-lib origin is bottom-left)
+
+const BLACK = rgb(0, 0, 0);
+const WHITE = rgb(1, 1, 1);
+const DARK = rgb(0.1, 0.1, 0.1);
+const GRAY = rgb(0.45, 0.45, 0.45);
+const BLUE = rgb(21 / 255, 95 / 255, 151 / 255);
+const DIVIDER = rgb(0.85, 0.85, 0.85);
+
+const LABEL_RIGHT = 89;
+const VALUE_LEFT = LABEL_RIGHT + 15;
+
+function wrapText(text, font, size, maxWidth) {
+  const words = String(text ?? "")
+    .replace(/\u2028/g, " ") // strip line separator chars from CSV
+    .split(" ");
+  const lines = [];
+  let current = "";
+  for (const word of words) {
+    if (!word) continue;
+    const test = current ? `${current} ${word}` : word;
+    if (font.widthOfTextAtSize(test, size) > maxWidth && current) {
+      lines.push(current);
+      current = word;
+    } else {
+      current = test;
+    }
+  }
+  if (current) lines.push(current);
+  return lines;
+}
+function centerText(page, font, text, topY, size = 11, color = BLACK) {
+  const textWidth = font.widthOfTextAtSize(text, size);
+  page.drawText(text, {
+    x: page.getWidth() / 2 - textWidth / 2,
+    y: topY,
+    size,
+    font,
+    color,
+  });
+}
+
+function drawLabel(page, font, label, topY, size = 11) {
+  const textWidth = font.widthOfTextAtSize(label, size);
+  const startX = LABEL_RIGHT - textWidth;
+  page.drawText(label, {
+    x: startX,
+    y: yf(topY),
+    size,
+    font,
+    color: GRAY,
+  });
+}
+
+function drawValue(page, font, value, topY, size = 11, maxWidth = 450) {
+  const lines = wrapText(value, font, size, maxWidth);
+  lines.forEach((line, i) => {
+    page.drawText(line, {
+      x: VALUE_LEFT,
+      y: yf(topY + i * 14),
+      size,
+      font,
+      color: BLUE,
+    });
+  });
+  return lines.length;
+}
+
+function drawDivider(page, topY) {
+  page.drawRectangle({
+    x: 35,
+    y: yf(topY + 1),
+    width: 524,
+    height: 1,
+    color: DIVIDER,
+  });
+}
+
+function drawSection(page, font, title, topY) {
+  page.drawText(title, { x: 35, y: yf(topY), size: 14, font, color: DARK });
+}
 
 export async function generatePdf(data, outputPath) {
   const pdfDoc = await PDFDocument.create();
-  const page = pdfDoc.addPage([595, 842]); // A4
-  const { width, height } = page.getSize();
+  pdfDoc.registerFontkit(fontkit);
+  const page = pdfDoc.addPage([W, H]);
+  const BarlowBold = await pdfDoc.embedFont(BarlowBoldSrc);
+  const BarlowSemiBold = await pdfDoc.embedFont(BarlowSemiBoldSrc);
+  const logo = await pdfDoc.embedPng(Logo);
 
-  const fontRegular = await pdfDoc.embedFont(StandardFonts.Helvetica);
-  const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+  // ── TOP HEADER ──────────────────────────────────────────────────────
+  page.drawRectangle({ x: 0, y: yf(65), width: W, height: 65, color: BLACK });
 
-  const primary = rgb(0.1, 0.1, 0.18);
-  const muted = rgb(0.55, 0.55, 0.55);
-  const accent = rgb(0.2, 0.4, 0.8);
-
-  // Header bar
-  page.drawRectangle({
-    x: 0,
-    y: height - 80,
-    width,
-    height: 80,
-    color: accent,
+  page.drawImage(logo, {
+    x: page.getWidth() / 2 - LogoW,
+    y: yf(20 + LogoH),
+    width: LogoW,
+    height: LogoH,
   });
 
-  page.drawText("Voucher", {
-    x: 40,
-    y: height - 52,
-    size: 28,
-    font: fontBold,
-    color: rgb(1, 1, 1),
+  // ── TOP CONTENT ──────────────────────────────────────────────────────
+  page.drawText(`Confira o seu voucher ${data["Proposta"] ?? ""}`, {
+    x: 35,
+    y: yf(140),
+    size: 26,
+    font: BarlowBold,
+    color: DARK,
   });
 
-  // Fields
-  let y = height - 120;
-  const labelSize = 9;
-  const valueSize = 13;
-  const lineGap = 8;
-  const fieldGap = 28;
+  const greetX = 35 + BarlowBold.widthOfTextAtSize("Olá, ", 13);
+  page.drawText("Olá, ", {
+    x: 35,
+    y: yf(212),
+    size: 13,
+    font: BarlowBold,
+    color: DARK,
+  });
+  page.drawText(String(data["Nome"] ?? ""), {
+    x: greetX,
+    y: yf(212),
+    size: 14,
+    font: BarlowBold,
+    color: BLUE,
+  });
 
-  for (const [key, value] of Object.entries(data)) {
-    // Label
-    page.drawText(String(key).toUpperCase(), {
-      x: 40,
-      y,
-      size: labelSize,
-      font: fontRegular,
-      color: muted,
-    });
+  page.drawText(
+    "Veja abaixo os dados de sua reserva para a CONMEBOL Recopa 2026",
+    {
+      x: 35,
+      y: yf(240),
+      size: 14,
+      font: BarlowBold,
+      color: DARK,
+    },
+  );
 
-    y -= labelSize + lineGap;
+  // ── RESUMO DO PEDIDO ────────────────────────────────────────────────
+  drawSection(page, BarlowBold, "Resumo do pedido", 322);
+  drawDivider(page, 333);
+  drawLabel(page, BarlowSemiBold, "Nome:", 361);
+  drawValue(page, BarlowBold, data["Nome"], 362.5, 15);
+  drawDivider(page, 382);
 
-    // Value
-    page.drawText(String(value), {
-      x: 40,
-      y,
-      size: valueSize,
-      font: fontBold,
-      color: primary,
-    });
+  // ── INFORMAÇÕES DE HOTEL ────────────────────────────────────────────
+  drawSection(page, BarlowBold, "Informações de hotel", 408);
 
-    y -= valueSize + fieldGap;
-
-    // Divider
-    page.drawLine({
-      start: { x: 40, y },
-      end: { x: width - 40, y },
-      thickness: 0.5,
-      color: rgb(0.9, 0.9, 0.9),
-    });
-
-    y -= fieldGap;
+  const hotelRows = [
+    ["Hotel:", data["Hotel"], 438, 438],
+    ["Endereço:", data["Endereço"], 460, 460],
+    ["Check In:", data["Check in"], 483, 483],
+    ["Check Out:", data["Check Out"], 505, 505],
+    ["Quarto:", data["Quarto"], 527, 527],
+    ["Hospedes:", data["Hospedes"], 549, 549],
+  ];
+  for (const [label, value, ly, vy] of hotelRows) {
+    drawLabel(page, BarlowSemiBold, label, ly);
+    drawValue(page, BarlowSemiBold, value, vy);
   }
 
-  const pdfBytes = await pdfDoc.save();
-  await writeFile(outputPath, pdfBytes);
+  // ── INFORMAÇÕES DO INGRESSO ─────────────────────────────────────────
+  drawSection(page, BarlowBold, "Informações do Ingresso", 586);
+  drawLabel(page, BarlowSemiBold, "Ingresso:", 607);
+  drawValue(page, BarlowSemiBold, data["Tipo de Ingresso"], 607);
+  drawLabel(page, BarlowSemiBold, "Quantidade:", 627);
+  drawValue(page, BarlowSemiBold, String(data["Quantidade"]), 627);
+  drawLabel(page, BarlowSemiBold, "OBS:", 648);
+  drawValue(page, BarlowSemiBold, data["Obs"], 648);
+
+  // ── INFORMAÇÕES GERAIS ──────────────────────────────────────────────
+  page.drawText("Informações gerais:", {
+    x: 220,
+    y: yf(710),
+    size: 11,
+    font: BarlowBold,
+    color: BLACK,
+  });
+  centerText(
+    page,
+    BarlowBold,
+    "Para qualquer dúvida sobre sua reserva, alterações ou suporte durante sua estadia, entre em contato conosco:",
+    yf(727),
+    10,
+  );
+
+  // ── FOOTER ──────────────────────────────────────────────────────────
+  page.drawRectangle({ x: 0, y: 0, width: W, height: 100, color: BLACK });
+
+  centerText(
+    page,
+    BarlowBold,
+    "Telefone de Atendimento (Brasil):  (21) 3802-3850",
+    yf(785),
+    12,
+    WHITE,
+  );
+  centerText(
+    page,
+    BarlowBold,
+    "E-mail de Suporte:  atendimento@absolut-sport.com.br",
+    yf(802),
+    12,
+    WHITE,
+  );
+
+  const bytes = await pdfDoc.save();
+  await writeFile(outputPath, bytes);
 }
